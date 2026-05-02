@@ -1,0 +1,89 @@
+// Configuración del cliente Prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Basado en 001_create_users_and_profiles.sql
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  profile   Profile?
+  inventory Inventory[]
+  ratings   Rating[]
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  username  String?
+  fullName  String?
+  avatarUrl String?
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// Basado en 003_create_recipes_and_ingredients.sql
+model Recipe {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?  @db.Text
+  instructions String?  @db.Text
+  imageUrl     String?
+  difficulty   String?
+  prepTime     Int?
+  ingredients  RecipeIngredient[]
+  ratings      Rating[]
+}
+
+model Ingredient {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  category  String?
+  recipes   RecipeIngredient[]
+  inventory Inventory[]
+}
+
+// Tabla intermedia para la relación muchos a muchos entre recetas e ingredientes
+model RecipeIngredient {
+  recipeId     String
+  ingredientId String
+  amount       String?
+  recipe       Recipe     @relation(fields: [recipeId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@id([recipeId, ingredientId])
+}
+
+// Basado en 004_create_user_inventory.sql
+model Inventory {
+  id           String     @id @default(uuid())
+  userId       String
+  ingredientId String
+  quantity     String?
+  user         User       @relation(fields: [userId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+}
+
+// Basado en 006_create_ratings.sql[cite: 1]
+model Rating {
+  id        String   @id @default(uuid())
+  score     Int
+  comment   String?  @db.Text
+  userId    String
+  recipeId  String
+  user      User     @relation(fields: [userId], references: [id])
+  recipe    Recipe   @relation(fields: [recipeId], references: [id])
+}
+
+// Basado en 002_create_medical_restrictions.sql[cite: 1]
+model MedicalRestriction {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+}
