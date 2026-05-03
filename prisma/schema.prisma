@@ -20,6 +20,7 @@ model User {
   favorites Favorite[]
   Profile   Profile?
   Rating    Rating[]
+  history   History[] // Relación opuesta para el historial
 }
 
 model Profile {
@@ -40,6 +41,7 @@ model Recipe {
   ingredients  RecipeIngredient[]
   favoritedBy  Favorite[]
   Rating       Rating[]
+  cookedIn  History[] // Relación opuesta
 }
 model Ingredient {
   id        String             @id @default(uuid())
@@ -97,4 +99,13 @@ model Favorite {
 
   // Recomendación de ingeniería: Evita duplicados (un usuario solo da 1 like por receta)
   @@unique([userId, recipeId])
+}
+
+model History {
+  id        String   @id @default(uuid())
+  userId    String
+  recipeId  String
+  cookedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  recipe    Recipe   @relation(fields: [recipeId], references: [id])
 }

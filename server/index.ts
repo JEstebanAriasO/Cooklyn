@@ -81,7 +81,7 @@ app.get('/api/recipes/match/:userId', async (req, res) => {
             where: { userId },
             select: { ingredientId: true }
         });
-        const myIngredientIds = userInventory.map((i: { ingredientId: number }) => i.ingredientId);
+        const myIngredientIds = userInventory.map((i) => i.ingredientId);
 
         // 2. Obtener recetas que coincidan parcial o totalmente
         const recipes = await prisma.recipe.findMany({
@@ -96,15 +96,6 @@ app.get('/api/recipes/match/:userId', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: 'Error en el emparejamiento' });
     }
-});
-
-app.get('/api/recipes/:id', async (req, res) => {
-    const { id } = req.params;
-    const recipe = await prisma.recipe.findUnique({
-        where: { id },
-        include: { ingredients: { include: { ingredient: true } } }
-    });
-    res.json(recipe);
 });
 
 // Obtener el detalle de una receta específica
@@ -239,38 +230,6 @@ app.get('/api/ingredients/search', async (req, res) => {
     }
 });
 
-app.post('/api/inventory', async (req, res) => {
-    const { userId, ingredientId, quantity } = req.body;
-
-    try {
-        // Usamos upsert por si el usuario ya tiene ese ingrediente, 
-        // solo actualizamos la cantidad en lugar de crear un duplicado.
-        const inventoryItem = await prisma.inventory.upsert({
-            where: {
-                // Asumiendo que tienes un índice único compuesto en tu schema: @@unique([userId, ingredientId])
-                userId_ingredientId: {
-                    userId,
-                    ingredientId,
-                },
-            },
-            update: {
-                quantity: quantity,
-            },
-            create: {
-                userId,
-                ingredientId,
-                quantity,
-            },
-        });
-        res.json(inventoryItem);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'No se pudo actualizar el inventario' });
-    }
-});
-
-// server/index.ts
-
 app.delete('/api/inventory/:id', async (req, res) => {
     const { id } = req.params;
 
@@ -309,16 +268,19 @@ app.post('/api/recipes/cook', async (req, res) => {
                 });
 
                 if (inventoryItem) {
-                    // Lógica simple: si existe, lo eliminamos (o podrías restar cantidad si fuera numérica)
-                    // Para este MVP, simularemos que se "gasta" el producto de la despensa
                     await tx.inventory.delete({
                         where: { id: inventoryItem.id }
                     });
                 }
             }
+
+            // 3. Guardamos el evento en el historial del usuario
+            await tx.history.create({
+                data: { userId, recipeId }
+            });
         });
 
-        res.json({ message: '¡Buen provecho! Ingredientes descontados de tu despensa.' });
+        res.json({ message: '¡Buen provecho! Ingredientes descontados y receta registrada en tu historial.' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al procesar la receta' });
@@ -367,43 +329,12 @@ app.get('/api/favorites/:userId', async (req, res) => {
             }
         });
         // Retornamos directamente el objeto de la receta para facilitar el mapeo en el frontend
-        res.json(favorites.map(f => f.recipe));
+        res.json(favorites.map((f) => f.recipe));
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener favoritos' });
     }
 });
 
-// 2. Alternar favorito (Crear o Eliminar)
-app.get('/api/favorites/:userId', async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        const favorites = await prisma.favorite.findMany({
-            where: {
-                userId: userId // Verifica que el campo se llame así en tu esquema
-            },
-            include: {
-                recipe: {
-                    include: {
-                        ingredients: {
-                            include: { ingredient: true }
-                        }
-                    }
-                }
-            }
-        });
-
-        // IMPORTANTE: Devolvemos un Array vacío si no hay nada, 
-        // para que el frontend no se rompa.
-        const recipes = favorites.map(f => f.recipe);
-        res.json(recipes || []);
-    } catch (error) {
-        console.error("Error en favoritos:", error);
-        res.status(500).json([]); // Enviamos array vacío incluso en error para proteger la UI
-    }
-});
-
-// server/index.ts
 app.post('/api/favorites/toggle', async (req, res) => {
     const { userId, recipeId } = req.body;
     try {
@@ -420,6 +351,27 @@ app.post('/api/favorites/toggle', async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ error: 'Error al actualizar favoritos' });
+    }
+});
+
+// Obtener el historial de un usuario específico
+app.get('/api/history/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const history = await prisma.history.findMany({
+            where: { userId },
+            include: {
+                recipe: true // Esto es vital para que el frontend tenga el título de la receta
+            },
+            orderBy: {
+                cookedAt: 'desc' // Lo más reciente primero
+            }
+        });
+        res.json(history);
+    } catch (error) {
+        console.error("Error al obtener historial:", error);
+        res.status(500).json({ error: "No se pudo cargar el historial" });
     }
 });
 
