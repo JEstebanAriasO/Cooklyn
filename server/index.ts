@@ -325,6 +325,35 @@ app.post('/api/recipes/cook', async (req, res) => {
     }
 });
 
+app.get('/api/recipes/:recipeId/missing-ingredients/:userId', async (req, res) => {
+    const { recipeId, userId } = req.params;
+
+    try {
+        // 1. Obtenemos los ingredientes requeridos por la receta
+        const recipeIngredients = await prisma.recipeIngredient.findMany({
+            where: { recipeId },
+            include: { ingredient: true }
+        });
+
+        // 2. Obtenemos lo que el usuario YA tiene
+        const userInventory = await prisma.inventory.findMany({
+            where: { userId },
+            select: { ingredientId: true }
+        });
+
+        const inventoryIds = userInventory.map(item => item.ingredientId);
+
+        // 3. Filtramos: solo los que NO están en el inventario
+        const missing = recipeIngredients.filter(
+            ri => !inventoryIds.includes(ri.ingredientId)
+        );
+
+        res.json(missing);
+    } catch (error) {
+        res.status(500).json({ error: 'Error al calcular ingredientes faltantes' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     

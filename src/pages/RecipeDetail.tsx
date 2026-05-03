@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Clock, ChefHat, CheckCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Clock, ChefHat, CheckCircle, Loader2, ShoppingCart, AlertCircle } from 'lucide-react';
 
 const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => void }) => {
     const [recipe, setRecipe] = useState<any>(null);
+    const [missingIngredients, setMissingIngredients] = useState<any[]>([]); // Nuevo estado
     const [loading, setLoading] = useState(true);
     const [isCooking, setIsCooking] = useState(false);
 
+    const userId = localStorage.getItem('user_id');
+
     useEffect(() => {
-        const fetchRecipe = async () => {
+        const fetchRecipeData = async () => {
             try {
-                // Obtenemos los detalles reales desde tu API
-                const res = await fetch(`http://localhost:3000/api/recipes/${recipeId}`);
-                const data = await res.json();
-                setRecipe(data);
+                // 1. Cargar detalles de la receta
+                const recipeRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}`);
+                const recipeData = await recipeRes.json();
+                setRecipe(recipeData);
+
+                // 2. Cargar ingredientes faltantes desde el backend
+                const missingRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}/missing-ingredients/${userId}`);
+                const missingData = await missingRes.json();
+                setMissingIngredients(missingData);
             } catch (error) {
                 console.error("Error al cargar la receta:", error);
             } finally {
@@ -20,13 +28,11 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
             }
         };
 
-        fetchRecipe();
-    }, [recipeId]);
+        if (recipeId && userId) fetchRecipeData();
+    }, [recipeId, userId]);
 
     const handleCook = async () => {
-        const userId = localStorage.getItem('user_id');
         setIsCooking(true);
-
         try {
             const res = await fetch('http://localhost:3000/api/recipes/cook', {
                 method: 'POST',
@@ -35,8 +41,8 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
             });
 
             if (res.ok) {
-                alert("¡Buen provecho! Se han descontado los ingredientes de tu despensa.");
-                onBack(); // Regresamos a la lista principal
+                alert("¡Buen provecho! Ingredientes descontados de tu despensa.");
+                onBack();
             } else {
                 const error = await res.json();
                 alert(error.error || "Algo salió mal al cocinar.");
@@ -49,10 +55,12 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
     };
 
     if (loading) return (
-        <div className="flex justify-center py-20">
-            <Loader2 className="animate-spin text-orange-500 w-12 h-12" />
+        <div className="flex justify-center py-20 text-slate-400">
+            <Loader2 className="animate-spin text-orange-500 mr-2" /> Analizando ingredientes...
         </div>
     );
+
+    const canCook = missingIngredients.length === 0;
 
     return (
         <div className="max-w-3xl mx-auto p-6">
@@ -61,7 +69,6 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
             </button>
 
             <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-100">
-                {/* Cabecera con Imagen */}
                 <div className="h-72 bg-slate-100 flex items-center justify-center text-slate-400 relative">
                     <img
                         src={`https://source.unsplash.com/800x600/?cooking,${recipe?.title}`}
@@ -83,16 +90,36 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
                         </div>
                     </div>
 
+                    {/* SECCIÓN DE INGREDIENTES FALTANTES */}
+                    {missingIngredients.length > 0 && (
+                        <div className="mb-10 p-6 bg-rose-50 border border-rose-100 rounded-3xl">
+                            <h3 className="text-rose-800 font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
+                                <ShoppingCart size={18} /> Te faltan estos ingredientes:
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {missingIngredients.map((mi: any) => (
+                                    <div key={mi.id || mi.ingredientId} className="flex items-center gap-2 text-rose-600 bg-white/50 p-2 rounded-xl border border-rose-200/50 text-sm">
+                                        <AlertCircle size={14} />
+                                        <span className="font-semibold">{mi.ingredient.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <h2 className="text-2xl font-bold text-slate-800 mb-5">Ingredientes necesarios</h2>
                     <div className="grid gap-3 mb-10">
-                        {recipe?.ingredients?.map((ri: any) => (
-                            <div key={ri.id} className="flex items-center gap-3 p-4 bg-orange-50/50 rounded-2xl border border-orange-100/50">
-                                <div className="w-2.5 h-2.5 bg-orange-500 rounded-full" />
-                                <span className="text-slate-700 font-medium">
-                                    {ri.quantity} de <span className="font-bold">{ri.ingredient.name}</span>
-                                </span>
-                            </div>
-                        ))}
+                        {recipe?.ingredients?.map((ri: any) => {
+                            const isMissing = missingIngredients.some(mi => mi.ingredientId === ri.ingredientId);
+                            return (
+                                <div key={ri.id || ri.ingredientId} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isMissing ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-orange-50/50 border-orange-100/50'}`}>
+                                    <div className={`w-2.5 h-2.5 rounded-full ${isMissing ? 'bg-slate-300' : 'bg-orange-500'}`} />
+                                    <span className={`font-medium ${isMissing ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                                        {ri.quantity || '1 unidad'} de <span className="font-bold">{ri.ingredient.name}</span>
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <h2 className="text-2xl font-bold text-slate-800 mb-5">Instrucciones de preparación</h2>
@@ -100,19 +127,20 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
                         {recipe?.instructions}
                     </p>
 
-                    {/* Botón de Acción Principal */}
                     <button
                         onClick={handleCook}
-                        disabled={isCooking}
-                        className="w-full bg-slate-900 text-white font-black py-5 rounded-[1.5rem] hover:bg-orange-500 transition-all duration-300 shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-70"
+                        disabled={isCooking || !canCook}
+                        className={`w-full font-black py-5 rounded-[1.5rem] shadow-lg flex items-center justify-center gap-3 transition-all duration-300 active:scale-[0.98]
+                            ${canCook
+                                ? 'bg-slate-900 text-white hover:bg-orange-500'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'}`}
                     >
                         {isCooking ? (
                             <Loader2 className="animate-spin" size={24} />
+                        ) : canCook ? (
+                            <><CheckCircle size={24} /> ¡Cocinar esta receta!</>
                         ) : (
-                            <>
-                                <CheckCircle size={24} />
-                                ¡Cocinar esta receta!
-                            </>
+                            <><ShoppingCart size={24} /> Faltan ingredientes</>
                         )}
                     </button>
                 </div>
