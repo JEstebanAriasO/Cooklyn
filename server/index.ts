@@ -215,6 +215,60 @@ app.post('/api/inventory', async (req, res) => {
     }
 });
 
+// Endpoint para buscar ingredientes en tiempo real
+app.get('/api/ingredients/search', async (req, res) => {
+    const { q } = req.query;
+
+    if (!q || typeof q !== 'string') {
+        return res.json([]);
+    }
+
+    try {
+        const ingredients = await prisma.ingredient.findMany({
+            where: {
+                name: {
+                    contains: q, // Busca coincidencias parciales
+                },
+            },
+            take: 10, // Limitamos a 10 resultados para mantener la UI limpia como en el repo
+        });
+        res.json(ingredients);
+    } catch (error) {
+        console.error("Error en la búsqueda:", error);
+        res.status(500).json({ error: 'Error al buscar ingredientes' });
+    }
+});
+
+app.post('/api/inventory', async (req, res) => {
+    const { userId, ingredientId, quantity } = req.body;
+
+    try {
+        // Usamos upsert por si el usuario ya tiene ese ingrediente, 
+        // solo actualizamos la cantidad en lugar de crear un duplicado.
+        const inventoryItem = await prisma.inventory.upsert({
+            where: {
+                // Asumiendo que tienes un índice único compuesto en tu schema: @@unique([userId, ingredientId])
+                userId_ingredientId: {
+                    userId,
+                    ingredientId,
+                },
+            },
+            update: {
+                quantity: quantity,
+            },
+            create: {
+                userId,
+                ingredientId,
+                quantity,
+            },
+        });
+        res.json(inventoryItem);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'No se pudo actualizar el inventario' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     
