@@ -54,6 +54,47 @@ app.post('/api/ingredients', async (req, res) => {
     }
 });
 
+app.get('/api/recipes', async (req, res) => {
+    try {
+        const recipes = await prisma.recipe.findMany({
+            include: {
+                ingredients: {
+                    include: { ingredient: true }
+                }
+            }
+        });
+        res.json(recipes);
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener recetas' });
+    }
+});
+
+// Lógica de "Qué puedo cocinar hoy"
+app.get('/api/recipes/match/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        // 1. Obtener el inventario del usuario
+        const userInventory = await prisma.inventory.findMany({
+            where: { userId },
+            select: { ingredientId: true }
+        });
+        const myIngredientIds = userInventory.map(i => i.ingredientId);
+
+        // 2. Obtener recetas que coincidan parcial o totalmente
+        const recipes = await prisma.recipe.findMany({
+            include: { ingredients: true }
+        });
+
+        const matches = recipes.filter(recipe =>
+            recipe.ingredients.every(ri => myIngredientIds.includes(ri.ingredientId))
+        );
+
+        res.json(matches);
+    } catch (error) {
+        res.status(500).json({ error: 'Error en el emparejamiento' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     
