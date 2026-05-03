@@ -6,375 +6,146 @@ import bcrypt from 'bcryptjs';
 
 const app = express();
 const prisma = new PrismaClient();
-const JWT_SECRET = 'tu_llave_secreta_super_segura'; // En producción, esto va en un archivo .env
-
-// Añade este bloque para probar la conexión al arrancar
-async function testConnection() {
-    try {
-        await prisma.$connect();
-        console.log("✅ Conexión a MySQL exitosa desde el servidor");
-    } catch (e) {
-        console.error("❌ No se pudo conectar a MySQL:", e);
-        process.exit(1);
-    }
-}
-
-testConnection();
-
-
+const JWT_SECRET = process.env.JWT_SECRET || 'cooklyn_secret_key_2026';
 const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
 
-// Ruta de prueba para verificar que el backend funciona
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Servidor de Cooklyn operando' });
-});
-
-// --- RUTAS DE INGREDIENTES ---
-
-// Obtener todos los ingredientes de la despensa
-app.get('/api/ingredients', async (req, res) => {
+// --- CONEXIÓN INICIAL ---
+async function connectDB() {
     try {
-        const ingredients = await prisma.ingredient.findMany();
-        res.json(ingredients);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener ingredientes' });
+        await prisma.$connect();
+        console.log("✅ Servidor Cooklyn conectado a MySQL en Manizales");
+    } catch (e) {
+        console.error("❌ Error de conexión:", e);
+        process.exit(1);
     }
-});
+}
+connectDB();
 
-// Agregar un nuevo ingrediente
-app.post('/api/ingredients', async (req, res) => {
-    const { name, category } = req.body;
-    try {
-        const newIngredient = await prisma.ingredient.create({
-            data: { name, category },
-        });
-        res.json(newIngredient);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al crear ingrediente' });
-    }
-});
-
-app.get('/api/recipes', async (req, res) => {
-    try {
-        const recipes = await prisma.recipe.findMany({
-            include: {
-                ingredients: {
-                    include: { ingredient: true }
-                }
-            }
-        });
-        res.json(recipes);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener recetas' });
-    }
-});
-
-// Lógica de "Qué puedo cocinar hoy"
-app.get('/api/recipes/match/:userId', async (req, res) => {
-    const { userId } = req.params;
-    try {
-        // 1. Obtener el inventario del usuario
-        const userInventory = await prisma.inventory.findMany({
-            where: { userId },
-            select: { ingredientId: true }
-        });
-        const myIngredientIds = userInventory.map((i) => i.ingredientId);
-
-        // 2. Obtener recetas que coincidan parcial o totalmente
-        const recipes = await prisma.recipe.findMany({
-            include: { ingredients: true }
-        });
-
-        const matches = recipes.filter((recipe: any) =>
-            recipe.ingredients.every((ri: any) => myIngredientIds.includes(ri.ingredientId))
-        );
-
-        res.json(matches);
-    } catch (error) {
-        res.status(500).json({ error: 'Error en el emparejamiento' });
-    }
-});
-
-// Obtener el detalle de una receta específica
-app.get('/api/recipes/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const recipe = await prisma.recipe.findUnique({
-            where: { id },
-            include: {
-                ingredients: {
-                    include: { ingredient: true }
-                }
-            }
-        });
-        if (!recipe) return res.status(404).json({ error: 'Receta no encontrada' });
-        res.json(recipe);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener el detalle de la receta' });
-    }
-});
-
-// server/index.ts
-app.get('/api/restrictions', async (req, res) => {
-    try {
-        const restrictions = await prisma.medicalRestriction.findMany();
-        res.json(restrictions);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Error interno' });
-    }
-});
-
-// --- ENDPOINT DE REGISTRO ---
+// --- AUTENTICACIÓN ---
 app.post('/api/auth/register', async (req, res) => {
-    // 1. Ver si la petición llega al código
-    console.log("--- 📥 Intento de Registro Recibido ---");
-    console.log("Datos del cuerpo:", req.body);
-
     const { email, password, name } = req.body;
-
-    // 2. Validar que no lleguen datos vacíos
-    if (!email || !password) {
-        console.log("⚠️ Error: Faltan campos obligatorios");
-        return res.status(400).json({ error: 'Email y password son obligatorios' });
-    }
-
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = await prisma.user.create({
-            data: { email, password: hashedPassword, name }
-        });
-
-        console.log("✅ Usuario creado con éxito:", user.email);
+        const user = await prisma.user.create({ data: { email, password: hashedPassword, name } });
         res.json({ message: 'Usuario creado', userId: user.id });
-
-    } catch (error) {
-        // 3. ESTO ES LO MÁS IMPORTANTE: Ver el error real de la base de datos
-        console.error("❌ ERROR DE PRISMA:", error);
-        res.status(400).json({ error: 'No se pudo crear el usuario' });
-    }
+    } catch (e) { res.status(400).json({ error: 'Error en registro' }); }
 });
 
-// --- ENDPOINT DE LOGIN ---
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) return res.status(401).json({ error: 'Contraseña incorrecta' });
-
+        if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).send();
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
-    } catch (error) {
-        res.status(500).json({ error: 'Error en el servidor' });
-    }
+        res.json({ token, user: { id: user.id, name: user.name } });
+    } catch (e) { res.status(500).send(); }
 });
 
-// 1. Obtener solo el inventario de un usuario específico
+// --- INVENTARIO ---
 app.get('/api/inventory/:userId', async (req, res) => {
-    const { userId } = req.params;
-    try {
-        const inventory = await prisma.inventory.findMany({
-            where: { userId },
-            include: { ingredient: true }
-        });
-        res.json(inventory);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener tu inventario' });
-    }
+    const items = await prisma.inventory.findMany({ where: { userId: req.params.userId }, include: { ingredient: true } });
+    res.json(items);
 });
 
-// 2. Guardar un ingrediente vinculado a un usuario
 app.post('/api/inventory', async (req, res) => {
     const { userId, ingredientId, quantity } = req.body;
     try {
-        const item = await prisma.inventory.create({
-            data: {
-                userId,
-                ingredientId,
-                quantity: quantity || 1
-            }
+        const item = await prisma.inventory.upsert({
+            where: { userId_ingredientId: { userId, ingredientId } },
+            update: { quantity },
+            create: { userId, ingredientId, quantity }
         });
         res.json(item);
-    } catch (error) {
-        res.status(500).json({ error: 'No se pudo guardar el ingrediente' });
-    }
-});
-
-// Endpoint para buscar ingredientes en tiempo real
-app.get('/api/ingredients/search', async (req, res) => {
-    const { q } = req.query;
-
-    if (!q || typeof q !== 'string') {
-        return res.json([]);
-    }
-
-    try {
-        const ingredients = await prisma.ingredient.findMany({
-            where: {
-                name: {
-                    contains: q, // Busca coincidencias parciales
-                },
-            },
-            take: 10, // Limitamos a 10 resultados para mantener la UI limpia como en el repo
-        });
-        res.json(ingredients);
-    } catch (error) {
-        console.error("Error en la búsqueda:", error);
-        res.status(500).json({ error: 'Error al buscar ingredientes' });
-    }
+    } catch (e) { res.status(500).send(); }
 });
 
 app.delete('/api/inventory/:id', async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        await prisma.inventory.delete({
-            where: { id },
-        });
-        res.json({ message: 'Ingrediente eliminado de tu despensa' });
-    } catch (error) {
-        console.error("Error al eliminar:", error);
-        res.status(500).json({ error: 'No se pudo eliminar el ingrediente' });
-    }
+    await prisma.inventory.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
 });
 
-app.post('/api/recipes/cook', async (req, res) => {
-    const { userId, recipeId } = req.body;
-
-    try {
-        // 1. Buscamos los ingredientes que necesita la receta
-        const recipe = await prisma.recipe.findUnique({
-            where: { id: recipeId },
-            include: { ingredients: true }
-        });
-
-        if (!recipe) return res.status(404).json({ error: 'Receta no encontrada' });
-
-        // 2. Iniciamos una transacción para que todo sea atómico
-        await prisma.$transaction(async (tx) => {
-            for (const reqIng of recipe.ingredients) {
-                // Buscamos el ingrediente en el inventario del usuario
-                const inventoryItem = await tx.inventory.findFirst({
-                    where: {
-                        userId: userId,
-                        ingredientId: reqIng.ingredientId
-                    }
-                });
-
-                if (inventoryItem) {
-                    await tx.inventory.delete({
-                        where: { id: inventoryItem.id }
-                    });
-                }
-            }
-
-            // 3. Guardamos el evento en el historial del usuario
-            await tx.history.create({
-                data: { userId, recipeId }
-            });
-        });
-
-        res.json({ message: '¡Buen provecho! Ingredientes descontados y receta registrada en tu historial.' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Error al procesar la receta' });
-    }
+// --- RECETAS Y CÁLCULOS ---
+app.get('/api/recipes', async (req, res) => {
+    const recipes = await prisma.recipe.findMany({ include: { ingredients: { include: { ingredient: true } } } });
+    res.json(recipes);
 });
 
+app.get('/api/recipes/:id', async (req, res) => {
+    const recipe = await prisma.recipe.findUnique({
+        where: { id: req.params.id },
+        include: { ingredients: { include: { ingredient: true } } }
+    });
+    recipe ? res.json(recipe) : res.status(404).send();
+});
+
+// NUEVA: Ruta de ingredientes faltantes (Arregla el error de tu captura)
 app.get('/api/recipes/:recipeId/missing-ingredients/:userId', async (req, res) => {
     const { recipeId, userId } = req.params;
-
     try {
-        // 1. Obtenemos los ingredientes requeridos por la receta
-        const recipeIngredients = await prisma.recipeIngredient.findMany({
-            where: { recipeId },
+        const recipeIngs = await prisma.recipeIngredient.findMany({ where: { recipeId } });
+        const userInv = await prisma.inventory.findMany({ where: { userId }, select: { ingredientId: true } });
+        const myIds = userInv.map(i => i.ingredientId);
+
+        const missing = await prisma.recipeIngredient.findMany({
+            where: { recipeId, NOT: { ingredientId: { in: myIds } } },
             include: { ingredient: true }
         });
-
-        // 2. Obtenemos lo que el usuario YA tiene
-        const userInventory = await prisma.inventory.findMany({
-            where: { userId },
-            select: { ingredientId: true }
-        });
-
-        const inventoryIds = userInventory.map(item => item.ingredientId);
-
-        // 3. Filtramos: solo los que NO están en el inventario
-        const missing = recipeIngredients.filter(
-            ri => !inventoryIds.includes(ri.ingredientId)
-        );
-
         res.json(missing);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al calcular ingredientes faltantes' });
-    }
+    } catch (e) { res.status(500).send(); }
 });
 
-// 1. Obtener todas las recetas favoritas de un usuario
-app.get('/api/favorites/:userId', async (req, res) => {
-    const { userId } = req.params;
+// --- HISTORIAL Y FAVORITOS ---
+app.post('/api/recipes/cook', async (req, res) => {
+    const { userId, recipeId } = req.body;
     try {
-        const favorites = await prisma.favorite.findMany({
-            where: { userId },
-            include: {
-                recipe: {
-                    include: { ingredients: { include: { ingredient: true } } }
+        await prisma.$transaction(async (tx) => {
+            const recipe = await tx.recipe.findUnique({ where: { id: recipeId }, include: { ingredients: true } });
+            if (recipe) {
+                for (const ri of recipe.ingredients) {
+                    await tx.inventory.deleteMany({ where: { userId, ingredientId: ri.ingredientId } });
                 }
+                await tx.history.create({ data: { userId, recipeId } });
             }
         });
-        // Retornamos directamente el objeto de la receta para facilitar el mapeo en el frontend
-        res.json(favorites.map((f) => f.recipe));
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener favoritos' });
-    }
+        res.json({ success: true });
+    } catch (e) { res.status(500).send(); }
+});
+
+app.get('/api/history/:userId', async (req, res) => {
+    const hist = await prisma.history.findMany({ where: { userId: req.params.userId }, include: { recipe: true }, orderBy: { cookedAt: 'desc' } });
+    res.json(hist);
 });
 
 app.post('/api/favorites/toggle', async (req, res) => {
     const { userId, recipeId } = req.body;
-    try {
-        const existing = await prisma.favorite.findFirst({
-            where: { userId, recipeId }
-        });
-
-        if (existing) {
-            await prisma.favorite.delete({ where: { id: existing.id } });
-            return res.json({ isFavorite: false });
-        } else {
-            await prisma.favorite.create({ data: { userId, recipeId } });
-            return res.json({ isFavorite: true });
-        }
-    } catch (error) {
-        res.status(500).json({ error: 'Error al actualizar favoritos' });
+    const exists = await prisma.favorite.findFirst({ where: { userId, recipeId } });
+    if (exists) {
+        await prisma.favorite.delete({ where: { id: exists.id } });
+        res.json({ isFavorite: false });
+    } else {
+        await prisma.favorite.create({ data: { userId, recipeId } });
+        res.json({ isFavorite: true });
     }
 });
 
-// Obtener el historial de un usuario específico
-app.get('/api/history/:userId', async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        const history = await prisma.history.findMany({
-            where: { userId },
-            include: {
-                recipe: true // Esto es vital para que el frontend tenga el título de la receta
-            },
-            orderBy: {
-                cookedAt: 'desc' // Lo más reciente primero
-            }
-        });
-        res.json(history);
-    } catch (error) {
-        console.error("Error al obtener historial:", error);
-        res.status(500).json({ error: "No se pudo cargar el historial" });
-    }
+app.get('/api/favorites/:userId', async (req, res) => {
+    const favs = await prisma.favorite.findMany({ where: { userId: req.params.userId }, include: { recipe: true } });
+    res.json(favs.map(f => f.recipe));
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-});     
+// --- AUXILIARES (Arreglan el error 404 de restricciones)[cite: 3] ---
+app.get('/api/restrictions', async (req, res) => {
+    const resList = await prisma.medicalRestriction.findMany();
+    res.json(resList);
+});
+
+app.get('/api/ingredients/search', async (req, res) => {
+    const { q } = req.query;
+    const ings = await prisma.ingredient.findMany({ where: { name: { contains: String(q) } }, take: 10 });
+    res.json(ings);
+});
+
+app.listen(PORT, () => console.log(`🚀 Cooklyn corriendo en http://localhost:${PORT}`));

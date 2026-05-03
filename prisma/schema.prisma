@@ -9,18 +9,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Basado en 001_create_users_and_profiles.sql
 model User {
-  id        String      @id @default(uuid())
-  email     String      @unique
-  password  String
-  name      String?
-  createdAt DateTime    @default(now()) // AGREGA ESTA LÍNEA
-  inventory Inventory[]
-  favorites Favorite[]
-  Profile   Profile?
-  Rating    Rating[]
-  history   History[] // Relación opuesta para el historial
+  id          String      @id @default(uuid())
+  email       String      @unique
+  password    String
+  name        String?
+  createdAt   DateTime    @default(now())
+  inventory   Inventory[]
+  favorites   Favorite[]
+  history     History[]
+  Profile     Profile?
+  Rating      Rating[]
 }
 
 model Profile {
@@ -32,17 +31,19 @@ model Profile {
   user      User    @relation(fields: [userId], references: [id])
 }
 
-// Basado en 003_create_recipes_and_ingredients.sql
 model Recipe {
   id           String             @id @default(uuid())
   title        String
-  description  String?            // AGREGA ESTA LÍNEA[cite: 13]
+  description  String?            @db.Text
   instructions String             @db.Text
+  cookingTime  String?            @default("20")
+  difficulty   String?            @default("Media")
   ingredients  RecipeIngredient[]
   favoritedBy  Favorite[]
+  cookedBy     History[]
   Rating       Rating[]
-  cookedIn  History[] // Relación opuesta
 }
+
 model Ingredient {
   id        String             @id @default(uuid())
   name      String             @unique
@@ -51,7 +52,6 @@ model Ingredient {
   inventory Inventory[]
 }
 
-// Tabla intermedia para la relación muchos a muchos entre recetas e ingredientes
 model RecipeIngredient {
   recipeId     String
   ingredientId String
@@ -62,7 +62,6 @@ model RecipeIngredient {
   @@id([recipeId, ingredientId])
 }
 
-// Basado en 004_create_user_inventory.sql
 model Inventory {
   id           String     @id @default(uuid())
   userId       String
@@ -70,24 +69,8 @@ model Inventory {
   quantity     String?
   user         User       @relation(fields: [userId], references: [id])
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
-}
 
-// Basado en 006_create_ratings.sql[cite: 1]
-model Rating {
-  id       String  @id @default(uuid())
-  score    Int
-  comment  String? @db.Text
-  userId   String
-  recipeId String
-  user     User    @relation(fields: [userId], references: [id])
-  recipe   Recipe  @relation(fields: [recipeId], references: [id])
-}
-
-// Basado en 002_create_medical_restrictions.sql[cite: 1]
-model MedicalRestriction {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
+  @@unique([userId, ingredientId])
 }
 
 model Favorite {
@@ -97,7 +80,6 @@ model Favorite {
   user     User   @relation(fields: [userId], references: [id])
   recipe   Recipe @relation(fields: [recipeId], references: [id])
 
-  // Recomendación de ingeniería: Evita duplicados (un usuario solo da 1 like por receta)
   @@unique([userId, recipeId])
 }
 
@@ -108,4 +90,20 @@ model History {
   cookedAt  DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
   recipe    Recipe   @relation(fields: [recipeId], references: [id])
+}
+
+model Rating {
+  id       String  @id @default(uuid())
+  score    Int
+  comment  String? @db.Text
+  userId   String
+  recipeId String
+  user     User    @relation(fields: [userId], references: [id])
+  recipe   Recipe  @relation(fields: [recipeId], references: [id])
+}
+
+model MedicalRestriction {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
 }
