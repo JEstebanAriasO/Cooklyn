@@ -285,6 +285,46 @@ app.delete('/api/inventory/:id', async (req, res) => {
     }
 });
 
+app.post('/api/recipes/cook', async (req, res) => {
+    const { userId, recipeId } = req.body;
+
+    try {
+        // 1. Buscamos los ingredientes que necesita la receta
+        const recipe = await prisma.recipe.findUnique({
+            where: { id: recipeId },
+            include: { ingredients: true }
+        });
+
+        if (!recipe) return res.status(404).json({ error: 'Receta no encontrada' });
+
+        // 2. Iniciamos una transacción para que todo sea atómico
+        await prisma.$transaction(async (tx) => {
+            for (const reqIng of recipe.ingredients) {
+                // Buscamos el ingrediente en el inventario del usuario
+                const inventoryItem = await tx.inventory.findFirst({
+                    where: {
+                        userId: userId,
+                        ingredientId: reqIng.ingredientId
+                    }
+                });
+
+                if (inventoryItem) {
+                    // Lógica simple: si existe, lo eliminamos (o podrías restar cantidad si fuera numérica)
+                    // Para este MVP, simularemos que se "gasta" el producto de la despensa
+                    await tx.inventory.delete({
+                        where: { id: inventoryItem.id }
+                    });
+                }
+            }
+        });
+
+        res.json({ message: '¡Buen provecho! Ingredientes descontados de tu despensa.' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al procesar la receta' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     
