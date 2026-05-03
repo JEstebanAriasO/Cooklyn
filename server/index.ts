@@ -269,6 +269,22 @@ app.post('/api/inventory', async (req, res) => {
     }
 });
 
+// server/index.ts
+
+app.delete('/api/inventory/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await prisma.inventory.delete({
+            where: { id },
+        });
+        res.json({ message: 'Ingrediente eliminado de tu despensa' });
+    } catch (error) {
+        console.error("Error al eliminar:", error);
+        res.status(500).json({ error: 'No se pudo eliminar el ingrediente' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     
