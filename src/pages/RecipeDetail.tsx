@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, Clock, ChefHat } from 'lucide-react';
 
 const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => void }) => {
@@ -6,7 +6,8 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
 
     useEffect(() => {
         // Aquí llamaríamos a recipeService.getById(recipeId)
-        // Por ahora, para probar la UI, usaremos los datos que ya tenemos
+        // Por ahora, para probar la UI, simulamos la carga de datos.
+        setRecipe({ title: 'Arroz con Huevo' });
     }, [recipeId]);
 
     return (

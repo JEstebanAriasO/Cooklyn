@@ -1,9 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const prisma = new PrismaClient();
+const JWT_SECRET = 'tu_llave_secreta_super_segura'; // En producción, esto va en un archivo .env
 
 // Añade este bloque para probar la conexión al arrancar
 async function testConnection() {
@@ -131,6 +134,37 @@ app.get('/api/restrictions', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error interno' });
+    }
+});
+
+// --- ENDPOINT DE REGISTRO ---
+app.post('/api/auth/register', async (req, res) => {
+    const { email, password, name } = req.body;
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await prisma.user.create({
+            data: { email, password: hashedPassword, name }
+        });
+        res.json({ message: 'Usuario creado', userId: user.id });
+    } catch (error) {
+        res.status(400).json({ error: 'El correo ya está registrado' });
+    }
+});
+
+// --- ENDPOINT DE LOGIN ---
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) return res.status(401).json({ error: 'Contraseña incorrecta' });
+
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });
+        res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+    } catch (error) {
+        res.status(500).json({ error: 'Error en el servidor' });
     }
 });
 
