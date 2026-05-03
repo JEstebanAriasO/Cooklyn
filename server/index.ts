@@ -184,6 +184,37 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// 1. Obtener solo el inventario de un usuario específico
+app.get('/api/inventory/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const inventory = await prisma.inventory.findMany({
+            where: { userId },
+            include: { ingredient: true }
+        });
+        res.json(inventory);
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener tu inventario' });
+    }
+});
+
+// 2. Guardar un ingrediente vinculado a un usuario
+app.post('/api/inventory', async (req, res) => {
+    const { userId, ingredientId, quantity } = req.body;
+    try {
+        const item = await prisma.inventory.create({
+            data: {
+                userId,
+                ingredientId,
+                quantity: quantity || 1
+            }
+        });
+        res.json(item);
+    } catch (error) {
+        res.status(500).json({ error: 'No se pudo guardar el ingrediente' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     

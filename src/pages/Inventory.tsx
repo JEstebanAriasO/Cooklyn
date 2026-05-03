@@ -1,76 +1,67 @@
 import { useState, useEffect } from 'react';
-import { Plus, Package, Loader2 } from 'lucide-react';
-import { ingredientService } from '../services/ingredientService';
+import { Package, Plus, Trash2 } from 'lucide-react';
+import AddIngredientModal from '../components/ui/AddIngredientModal';
 
 const Inventory = () => {
-    // Cambiamos el estado estático por uno que inicie vacío
-    const [ingredients, setIngredients] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [inventory, setInventory] = useState([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const userId = localStorage.getItem('user_id');
 
-    // Hook para cargar datos al montar el componente
-    useEffect(() => {
-        fetchIngredients();
-    }, []);
-
-    const fetchIngredients = async () => {
-        try {
-            const data = await ingredientService.getAll();
-            setIngredients(data);
-        } catch (error) {
-            console.error("Error cargando ingredientes:", error);
-        } finally {
-            setLoading(false);
-        }
+    const fetchInventory = async () => {
+        const res = await fetch(`http://localhost:3000/api/inventory/${userId}`);
+        const data = await res.json();
+        setInventory(data);
     };
 
-    const handleAddIngredient = async () => {
-        const name = prompt("Nombre del nuevo ingrediente:");
-        if (!name) return;
+    useEffect(() => { fetchInventory(); }, []);
 
-        try {
-            // Guardamos en la base de datos[cite: 1]
-            await ingredientService.create(name, "General");
-            // Refrescamos la lista para ver el cambio[cite: 1]
-            fetchIngredients();
-        } catch (error) {
-            alert("No se pudo guardar el ingrediente");
-        }
+    const handleAdd = async (ingredientId: string) => {
+        await fetch('http://localhost:3000/api/inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, ingredientId, quantity: "1 unidad" }),
+        });
+        setIsModalOpen(false);
+        fetchInventory();
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-8">
-                <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
-                    <Package className="text-orange-500" /> Mi Despensa
-                </h1>
+        <div className="max-w-4xl mx-auto p-6">
+            <div className="flex justify-between items-center mb-10">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mi Despensa</h1>
+                    <p className="text-slate-500">Gestiona tus ingredientes para obtener recetas.</p>
+                </div>
                 <button
-                    onClick={handleAddIngredient}
-                    className="bg-orange-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition-all shadow-md active:scale-95"
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-orange-500 transition-all shadow-lg shadow-slate-200"
                 >
-                    <Plus size={20} /> Agregar Ingrediente
+                    <Plus size={20} /> Añadir
                 </button>
             </div>
 
-            {loading ? (
-                <div className="flex justify-center py-20">
-                    <Loader2 className="animate-spin text-orange-500 w-10 h-10" />
-                </div>
-            ) : (
-                <div className="grid gap-4">
-                    {ingredients.length === 0 ? (
-                        <p className="text-center text-slate-500 py-10 italic">No hay ingredientes en tu despensa.</p>
-                    ) : (
-                        ingredients.map((item: any) => (
-                            <div key={item.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm hover:border-orange-200 transition-colors">
-                                <span className="font-medium text-slate-700">{item.name}</span>
-                                <span className="text-slate-500 bg-slate-50 border border-slate-100 px-3 py-1 rounded-full text-xs">
-                                    {item.quantity || 'Sin cantidad'}
-                                </span>
+            {/* Lista de Ingredientes (Cards estilo Repo) */}
+            <div className="grid gap-3">
+                {inventory.map((item: any) => (
+                    <div key={item.id} className="bg-white p-5 rounded-3xl border border-slate-200 flex justify-between items-center group hover:border-orange-300 transition-all">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-orange-500">
+                                <Package size={24} />
                             </div>
-                        ))
-                    )}
-                </div>
-            )}
+                            <span className="font-bold text-slate-800 text-lg">{item.ingredient.name}</span>
+                        </div>
+                        <button className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                            <Trash2 size={20} />
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            <AddIngredientModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onAdd={handleAdd}
+            />
         </div>
     );
 };

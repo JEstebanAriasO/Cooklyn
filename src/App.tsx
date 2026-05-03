@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Inventory from './pages/Inventory';
 import Recipes from './pages/Recipes';
 import RecipeDetail from './pages/RecipeDetail';
 import Register from './pages/Register';
-import Login from './pages/Login';
+import Login from './pages/Login.tsx';
 import { LogOut } from 'lucide-react';
 
 function App() {
