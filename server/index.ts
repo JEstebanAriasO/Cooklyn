@@ -139,15 +139,31 @@ app.get('/api/restrictions', async (req, res) => {
 
 // --- ENDPOINT DE REGISTRO ---
 app.post('/api/auth/register', async (req, res) => {
+    // 1. Ver si la petición llega al código
+    console.log("--- 📥 Intento de Registro Recibido ---");
+    console.log("Datos del cuerpo:", req.body);
+
     const { email, password, name } = req.body;
+
+    // 2. Validar que no lleguen datos vacíos
+    if (!email || !password) {
+        console.log("⚠️ Error: Faltan campos obligatorios");
+        return res.status(400).json({ error: 'Email y password son obligatorios' });
+    }
+
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await prisma.user.create({
             data: { email, password: hashedPassword, name }
         });
+
+        console.log("✅ Usuario creado con éxito:", user.email);
         res.json({ message: 'Usuario creado', userId: user.id });
+
     } catch (error) {
-        res.status(400).json({ error: 'El correo ya está registrado' });
+        // 3. ESTO ES LO MÁS IMPORTANTE: Ver el error real de la base de datos
+        console.error("❌ ERROR DE PRISMA:", error);
+        res.status(400).json({ error: 'No se pudo crear el usuario' });
     }
 });
 
