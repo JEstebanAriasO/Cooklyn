@@ -123,6 +123,17 @@ app.get('/api/recipes/:id', async (req, res) => {
     }
 });
 
+// server/index.ts
+app.get('/api/restrictions', async (req, res) => {
+    try {
+        const restrictions = await prisma.medicalRestriction.findMany();
+        res.json(restrictions);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error interno' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     
