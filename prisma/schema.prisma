@@ -1,6 +1,6 @@
 // Configuración del cliente Prisma
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -11,41 +11,39 @@ datasource db {
 
 // Basado en 001_create_users_and_profiles.sql
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id        String      @id @default(uuid())
+  email     String      @unique
   password  String
   name      String?
-  createdAt DateTime @default(now())
-  profile   Profile?
+  createdAt DateTime    @default(now()) // AGREGA ESTA LÍNEA
   inventory Inventory[]
-  ratings   Rating[]
+  favorites Favorite[]
+  Profile   Profile?
+  Rating    Rating[]
 }
 
 model Profile {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   username  String?
   fullName  String?
   avatarUrl String?
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
+  userId    String  @unique
+  user      User    @relation(fields: [userId], references: [id])
 }
 
 // Basado en 003_create_recipes_and_ingredients.sql
 model Recipe {
-  id           String   @id @default(uuid())
+  id           String             @id @default(uuid())
   title        String
-  description  String?  @db.Text
-  instructions String?  @db.Text
-  imageUrl     String?
-  difficulty   String?
-  prepTime     Int?
+  description  String?            // AGREGA ESTA LÍNEA[cite: 13]
+  instructions String             @db.Text
   ingredients  RecipeIngredient[]
-  ratings      Rating[]
+  favoritedBy  Favorite[]
+  Rating       Rating[]
 }
-
 model Ingredient {
-  id        String   @id @default(uuid())
-  name      String   @unique
+  id        String             @id @default(uuid())
+  name      String             @unique
   category  String?
   recipes   RecipeIngredient[]
   inventory Inventory[]
@@ -74,18 +72,29 @@ model Inventory {
 
 // Basado en 006_create_ratings.sql[cite: 1]
 model Rating {
-  id        String   @id @default(uuid())
-  score     Int
-  comment   String?  @db.Text
-  userId    String
-  recipeId  String
-  user      User     @relation(fields: [userId], references: [id])
-  recipe    Recipe   @relation(fields: [recipeId], references: [id])
+  id       String  @id @default(uuid())
+  score    Int
+  comment  String? @db.Text
+  userId   String
+  recipeId String
+  user     User    @relation(fields: [userId], references: [id])
+  recipe   Recipe  @relation(fields: [recipeId], references: [id])
 }
 
 // Basado en 002_create_medical_restrictions.sql[cite: 1]
 model MedicalRestriction {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String  @id @default(uuid())
+  name        String  @unique
   description String?
+}
+
+model Favorite {
+  id       String @id @default(uuid())
+  userId   String
+  recipeId String
+  user     User   @relation(fields: [userId], references: [id])
+  recipe   Recipe @relation(fields: [recipeId], references: [id])
+
+  // Recomendación de ingeniería: Evita duplicados (un usuario solo da 1 like por receta)
+  @@unique([userId, recipeId])
 }

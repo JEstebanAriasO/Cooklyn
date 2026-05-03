@@ -354,6 +354,75 @@ app.get('/api/recipes/:recipeId/missing-ingredients/:userId', async (req, res) =
     }
 });
 
+// 1. Obtener todas las recetas favoritas de un usuario
+app.get('/api/favorites/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const favorites = await prisma.favorite.findMany({
+            where: { userId },
+            include: {
+                recipe: {
+                    include: { ingredients: { include: { ingredient: true } } }
+                }
+            }
+        });
+        // Retornamos directamente el objeto de la receta para facilitar el mapeo en el frontend
+        res.json(favorites.map(f => f.recipe));
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener favoritos' });
+    }
+});
+
+// 2. Alternar favorito (Crear o Eliminar)
+app.get('/api/favorites/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const favorites = await prisma.favorite.findMany({
+            where: {
+                userId: userId // Verifica que el campo se llame así en tu esquema
+            },
+            include: {
+                recipe: {
+                    include: {
+                        ingredients: {
+                            include: { ingredient: true }
+                        }
+                    }
+                }
+            }
+        });
+
+        // IMPORTANTE: Devolvemos un Array vacío si no hay nada, 
+        // para que el frontend no se rompa.
+        const recipes = favorites.map(f => f.recipe);
+        res.json(recipes || []);
+    } catch (error) {
+        console.error("Error en favoritos:", error);
+        res.status(500).json([]); // Enviamos array vacío incluso en error para proteger la UI
+    }
+});
+
+// server/index.ts
+app.post('/api/favorites/toggle', async (req, res) => {
+    const { userId, recipeId } = req.body;
+    try {
+        const existing = await prisma.favorite.findFirst({
+            where: { userId, recipeId }
+        });
+
+        if (existing) {
+            await prisma.favorite.delete({ where: { id: existing.id } });
+            return res.json({ isFavorite: false });
+        } else {
+            await prisma.favorite.create({ data: { userId, recipeId } });
+            return res.json({ isFavorite: true });
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Error al actualizar favoritos' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });     

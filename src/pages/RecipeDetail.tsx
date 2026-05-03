@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Clock, ChefHat, CheckCircle, Loader2, ShoppingCart, AlertCircle } from 'lucide-react';
+import {
+    ChevronLeft, Clock, ChefHat, CheckCircle,
+    Loader2, ShoppingCart, AlertCircle, Heart
+} from 'lucide-react';
 
 const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => void }) => {
     const [recipe, setRecipe] = useState<any>(null);
-    const [missingIngredients, setMissingIngredients] = useState<any[]>([]); // Nuevo estado
+    const [missingIngredients, setMissingIngredients] = useState<any[]>([]);
+    const [isFavorite, setIsFavorite] = useState(false); // Estado para el corazón
     const [loading, setLoading] = useState(true);
     const [isCooking, setIsCooking] = useState(false);
 
@@ -12,17 +16,23 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
     useEffect(() => {
         const fetchRecipeData = async () => {
             try {
-                // 1. Cargar detalles de la receta
+                // 1. Cargar detalles de la receta[cite: 12]
                 const recipeRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}`);
                 const recipeData = await recipeRes.json();
                 setRecipe(recipeData);
 
-                // 2. Cargar ingredientes faltantes desde el backend
+                // 2. Cargar ingredientes faltantes[cite: 12]
                 const missingRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}/missing-ingredients/${userId}`);
                 const missingData = await missingRes.json();
                 setMissingIngredients(missingData);
+
+                // 3. Verificar si ya es favorita (Petición opcional al backend o check local)
+                const favRes = await fetch(`http://localhost:3000/api/favorites/${userId}`);
+                const favs = await favRes.json();
+                setIsFavorite(favs.some((f: any) => f.id === recipeId));
+
             } catch (error) {
-                console.error("Error al cargar la receta:", error);
+                console.error("Error al cargar datos:", error);
             } finally {
                 setLoading(false);
             }
@@ -30,6 +40,21 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
 
         if (recipeId && userId) fetchRecipeData();
     }, [recipeId, userId]);
+
+    // Función para guardar/quitar de favoritos
+    const toggleFavorite = async () => {
+        try {
+            const res = await fetch('http://localhost:3000/api/favorites/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, recipeId }),
+            });
+            const data = await res.json();
+            setIsFavorite(data.isFavorite);
+        } catch (err) {
+            console.error("Error al actualizar favoritos");
+        }
+    };
 
     const handleCook = async () => {
         setIsCooking(true);
@@ -79,7 +104,18 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
                 </div>
 
                 <div className="p-10">
-                    <h1 className="text-4xl font-black text-slate-900 mb-6">{recipe?.title}</h1>
+                    <div className="flex justify-between items-start mb-6">
+                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">{recipe?.title}</h1>
+                        <button
+                            onClick={toggleFavorite}
+                            className={`p-4 rounded-2xl transition-all shadow-sm border ${isFavorite
+                                    ? 'bg-rose-50 border-rose-100 text-rose-500'
+                                    : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-rose-400'
+                                }`}
+                        >
+                            <Heart size={24} className={isFavorite ? "fill-rose-500" : ""} />
+                        </button>
+                    </div>
 
                     <div className="flex gap-4 mb-10">
                         <div className="flex items-center gap-2 text-slate-700 bg-slate-50 border border-slate-100 px-5 py-2.5 rounded-2xl text-sm font-bold">
@@ -90,7 +126,7 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
                         </div>
                     </div>
 
-                    {/* SECCIÓN DE INGREDIENTES FALTANTES */}
+                    {/* SECCIÓN DE INGREDIENTES FALTANTES[cite: 12] */}
                     {missingIngredients.length > 0 && (
                         <div className="mb-10 p-6 bg-rose-50 border border-rose-100 rounded-3xl">
                             <h3 className="text-rose-800 font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
@@ -122,8 +158,8 @@ const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => vo
                         })}
                     </div>
 
-                    <h2 className="text-2xl font-bold text-slate-800 mb-5">Instrucciones de preparación</h2>
-                    <p className="text-slate-600 leading-relaxed whitespace-pre-line text-lg mb-10">
+                    <h2 className="text-2xl font-bold text-slate-800 mb-5">Instrucciones</h2>
+                    <p className="text-slate-600 leading-relaxed whitespace-pre-line text-lg mb-10 bg-slate-50 p-6 rounded-3xl border border-slate-100">
                         {recipe?.instructions}
                     </p>
 
