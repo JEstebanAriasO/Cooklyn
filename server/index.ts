@@ -78,20 +78,48 @@ app.get('/api/recipes/match/:userId', async (req, res) => {
             where: { userId },
             select: { ingredientId: true }
         });
-        const myIngredientIds = userInventory.map(i => i.ingredientId);
+        const myIngredientIds = userInventory.map((i: { ingredientId: number }) => i.ingredientId);
 
         // 2. Obtener recetas que coincidan parcial o totalmente
         const recipes = await prisma.recipe.findMany({
             include: { ingredients: true }
         });
 
-        const matches = recipes.filter(recipe =>
-            recipe.ingredients.every(ri => myIngredientIds.includes(ri.ingredientId))
+        const matches = recipes.filter((recipe: any) =>
+            recipe.ingredients.every((ri: any) => myIngredientIds.includes(ri.ingredientId))
         );
 
         res.json(matches);
     } catch (error) {
         res.status(500).json({ error: 'Error en el emparejamiento' });
+    }
+});
+
+app.get('/api/recipes/:id', async (req, res) => {
+    const { id } = req.params;
+    const recipe = await prisma.recipe.findUnique({
+        where: { id },
+        include: { ingredients: { include: { ingredient: true } } }
+    });
+    res.json(recipe);
+});
+
+// Obtener el detalle de una receta específica
+app.get('/api/recipes/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const recipe = await prisma.recipe.findUnique({
+            where: { id },
+            include: {
+                ingredients: {
+                    include: { ingredient: true }
+                }
+            }
+        });
+        if (!recipe) return res.status(404).json({ error: 'Receta no encontrada' });
+        res.json(recipe);
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener el detalle de la receta' });
     }
 });
 
