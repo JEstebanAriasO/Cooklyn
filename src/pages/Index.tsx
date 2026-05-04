@@ -1,100 +1,134 @@
-import { useState, useEffect } from 'react';
-import { Sparkles, Utensils, ArrowRight, PackageOpen } from 'lucide-react';
+import { Link } from "react-router-dom";
+import { ArrowRight, ChefHat, Leaf, Loader2, ShieldCheck, Sparkles, Utensils } from "lucide-react";
+import { useCooklyn } from "@/context/CooklynContext";
+import { HomeRecipeCarousel } from "@/components/HomeRecipeCarousel";
+import { useEffect, useState } from "react";
+import { recipeService } from "@/services/recipeService";
 
-const Index = ({ onSelectRecipe, onGoToInventory }: {
-    onSelectRecipe: (id: string) => void,
-    onGoToInventory: () => void
-}) => {
-    const [matches, setMatches] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const userId = localStorage.getItem('user_id');
-    const userName = localStorage.getItem('user_name') || 'Chef';
+const Index = () => {
+  const { user } = useCooklyn();
+  const [matches, setMatches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        const fetchMatches = async () => {
-            try {
-                // Endpoint que creamos para filtrar recetas según inventario[cite: 2]
-                const res = await fetch(`http://localhost:3000/api/recipes/match/${userId}`);
-                const data = await res.json();
-                setMatches(data);
-            } catch (error) {
-                console.error("Error al obtener sugerencias:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        if (userId) fetchMatches();
-    }, [userId]);
+  useEffect(() => {
+    if (!user?.id) {
+      setMatches([]);
+      return;
+    }
+    setLoading(true);
+    recipeService
+      .getMatches(user.id)
+      .then((data) => setMatches(Array.isArray(data) ? data : []))
+      .catch(() => setMatches([]))
+      .finally(() => setLoading(false));
+  }, [user?.id]);
 
-    return (
-        <div className="p-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <header className="mb-12">
-                <div className="flex items-center gap-3 mb-2">
-                    <span className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest">
-                        Panel de Control
-                    </span>
-                </div>
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight">
-                    ¡Qué bueno verte, {userName}! <Sparkles className="inline text-orange-500" />
-                </h1>
-                <p className="text-slate-500 text-lg mt-2">
-                    Hoy tienes ingredientes para preparar estas delicias:
-                </p>
-            </header>
+  const invLink = user ? "/inventario" : "/login";
+  const primaryTo = user ? "/recetas" : "/registro";
+  const primaryLabel = user ? "Ver recetas" : "Crear mi perfil";
 
-            {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[1, 2].map(i => (
-                        <div key={i} className="h-48 bg-slate-100 animate-pulse rounded-[2.5rem]" />
-                    ))}
-                </div>
-            ) : matches.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {matches.map((recipe: any) => (
-                        <div
-                            key={recipe.id}
-                            onClick={() => onSelectRecipe(recipe.id)}
-                            className="group relative bg-white p-8 rounded-[2.5rem] border border-slate-200 hover:border-orange-400 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-orange-100/50 overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-500" />
-
-                            <div className="relative z-10">
-                                <h3 className="text-2xl font-black text-slate-800 mb-3 group-hover:text-orange-600 transition-colors">
-                                    {recipe.title}
-                                </h3>
-                                <div className="flex items-center gap-4 text-slate-500 font-bold text-sm">
-                                    <div className="flex items-center gap-1.5">
-                                        <Utensils size={16} className="text-orange-500" />
-                                        <span>{recipe.ingredients?.length} ingredientes</span>
-                                    </div>
-                                    <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                    <div className="flex items-center gap-1.5 group-hover:text-orange-500 transition-colors">
-                                        Ver receta <ArrowRight size={16} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-24 bg-slate-50 rounded-[3rem] border-4 border-dashed border-white shadow-inner">
-                    <div className="w-20 h-20 bg-white rounded-3xl shadow-md flex items-center justify-center mx-auto mb-6 text-slate-300">
-                        <PackageOpen size={40} />
-                    </div>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Despensa incompleta</h2>
-                    <p className="text-slate-500 max-w-xs mx-auto mb-8">
-                        No tienes suficientes ingredientes para ninguna receta completa en este momento.
-                    </p>
-                    <button
-                        onClick={onGoToInventory}
-                        className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black hover:bg-orange-500 transition-all shadow-lg"
-                    >
-                        Ir a mi Inventario
-                    </button>
-                </div>
-            )}
+  return (
+    <div className="space-y-16">
+      <section className="relative overflow-hidden rounded-[2.5rem] bg-card shadow-card">
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="flex flex-col justify-center p-8 md:p-12 lg:p-16">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+              <Leaf className="h-3.5 w-3.5" aria-hidden /> Abre y cocina
+            </span>
+            <h1 className="mt-4 font-display text-4xl font-700 leading-[1.05] tracking-tight md:text-5xl lg:text-6xl">
+              Cocina con lo que <span className="text-primary">tienes</span> hoy en casa.
+            </h1>
+            <p className="mt-5 max-w-md text-base text-muted-foreground md:text-lg">
+              Cooklyn analiza tu inventario, respeta tus restricciones de salud y te sugiere recetas con tips de Buenas Prácticas de Manufactura en cada paso.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to={primaryTo}
+                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-glow transition-smooth"
+              >
+                {primaryLabel} <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to={invLink}
+                className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-5 py-3 text-sm font-semibold hover:bg-muted transition-smooth"
+              >
+                Mi inventario
+              </Link>
+            </div>
+          </div>
+          <div className="relative flex items-stretch justify-center bg-gradient-leaf p-4 md:p-6">
+            <HomeRecipeCarousel />
+          </div>
         </div>
-    );
+      </section>
+
+      {user && (
+        <section aria-labelledby="sugerencias">
+          <h2 id="sugerencias" className="font-display text-2xl font-700 mb-6">
+            Sugerencias para ti
+          </h2>
+          {loading ? (
+            <div className="flex justify-center py-12 text-muted-foreground">
+              <Loader2 className="animate-spin h-8 w-8 text-primary" />
+            </div>
+          ) : matches.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {matches.map((recipe: any) => (
+                <Link
+                  key={recipe.id}
+                  to={`/recetas/${recipe.id}`}
+                  className="group rounded-3xl border border-border bg-card p-6 shadow-soft transition-smooth hover:shadow-card hover:border-primary/30"
+                >
+                  <h3 className="font-display text-xl font-700 group-hover:text-primary transition-colors">{recipe.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
+                    <Utensils className="h-4 w-4 text-primary" aria-hidden />
+                    {recipe.ingredients?.length ?? 0} ingredientes · Ver receta
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground rounded-3xl border border-dashed border-border bg-card/50 p-8 text-center">
+              Añade ingredientes en tu inventario para ver recetas que puedas cocinar hoy.
+            </p>
+          )}
+        </section>
+      )}
+
+      <section aria-labelledby="pillars">
+        <h2 id="pillars" className="sr-only">
+          Características
+        </h2>
+        <div className="grid gap-5 md:grid-cols-3">
+          {[
+            {
+              icon: ChefHat,
+              title: "Recetas a tu medida",
+              text: "Filtradas por lo que tienes en tu cocina y por tu perfil de salud.",
+            },
+            {
+              icon: ShieldCheck,
+              title: "Tips BPM en cada paso",
+              text: "Aprende higiene, temperatura segura y manipulación correcta.",
+            },
+            {
+              icon: Sparkles,
+              title: "Favoritos & historial",
+              text: "Guarda tus recetas preferidas y registra tus preparaciones.",
+            },
+          ].map(({ icon: Icon, title, text }) => (
+            <div key={title} className="rounded-3xl border border-border bg-card p-6 shadow-soft transition-smooth hover:shadow-card">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-soft">
+                <Icon className="h-5 w-5" aria-hidden />
+              </div>
+              <h3 className="mt-4 font-display text-xl font-600">{title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 };
 
 export default Index;

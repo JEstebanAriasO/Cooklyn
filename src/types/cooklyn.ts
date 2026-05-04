@@ -1,13 +1,29 @@
-export interface Ingredient {
-  id: string;
-  name: string;
-  category?: string;
+export type MedicalRestriction =
+  | "gluten"
+  | "lactosa"
+  | "frutos_secos"
+  | "mariscos"
+  | "huevo"
+  | "soya"
+  | "vegetariano"
+  | "vegano"
+  | "diabetes"
+  | "hipertension";
+
+export interface RestrictionInfo {
+  id: MedicalRestriction;
+  label: string;
+  excludes: string[];
 }
 
-export interface InventoryItem {
+export interface UserProfile {
+  name: string;
+  email: string;
+  restrictions: MedicalRestriction[];
+  customConditions: string[];
+  cautionIngredients: string[];
+}
+
+export interface CooklynUser extends UserProfile {
   id: string;
-  userId: string;
-  ingredientId: string;
-  quantity: string;
-  ingredient: Ingredient;
 }

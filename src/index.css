@@ -1,11 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    /* Puedes añadir más variables de tema aquí después */
+    /* Crema del logo Cooklyn */
+    --background: 50 30% 95%;
+    --foreground: 185 35% 15%;
+
+    --card: 50 35% 98%;
+    --card-foreground: 185 35% 15%;
+
+    --popover: 50 35% 98%;
+    --popover-foreground: 185 35% 15%;
+
+    /* Teal principal del logo */
+    --primary: 180 42% 36%;
+    --primary-foreground: 50 35% 98%;
+    --primary-glow: 178 48% 48%;
+
+    /* Teal oscuro para acentos secundarios */
+    --secondary: 188 50% 25%;
+    --secondary-foreground: 50 35% 98%;
+
+    --muted: 50 20% 90%;
+    --muted-foreground: 185 15% 38%;
+
+    /* Acento cálido (solo decorativo) */
+    --accent: 180 35% 88%;
+    --accent-foreground: 185 35% 15%;
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Naranja warning para advertencias de salud (no bloqueo) */
+    --warning: 28 92% 54%;
+    --warning-foreground: 0 0% 100%;
+
+    --success: 165 55% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 50 18% 84%;
+    --input: 50 18% 86%;
+    --ring: 180 42% 36%;
+
+    --radius: 1rem;
+
+    --gradient-hero: linear-gradient(135deg, hsl(188 50% 25%) 0%, hsl(180 42% 36%) 55%, hsl(178 48% 48%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(28 92% 60%) 0%, hsl(22 88% 52%) 100%);
+    --gradient-leaf: linear-gradient(180deg, hsl(180 25% 94%) 0%, hsl(50 30% 95%) 100%);
+
+    --shadow-soft: 0 4px 20px -8px hsl(188 40% 20% / 0.15);
+    --shadow-card: 0 10px 40px -15px hsl(188 50% 20% / 0.22);
+    --shadow-glow: 0 0 40px hsl(178 48% 48% / 0.3);
+
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 188 30% 8%;
+    --foreground: 50 30% 94%;
+    --card: 188 25% 12%;
+    --card-foreground: 50 30% 94%;
+    --popover: 188 25% 12%;
+    --popover-foreground: 50 30% 94%;
+    --primary: 178 48% 52%;
+    --primary-foreground: 188 40% 10%;
+    --secondary: 180 35% 30%;
+    --secondary-foreground: 50 30% 94%;
+    --muted: 188 20% 18%;
+    --muted-foreground: 50 15% 65%;
+    --accent: 180 25% 22%;
+    --accent-foreground: 50 30% 94%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 28 90% 58%;
+    --warning-foreground: 0 0% 100%;
+    --success: 165 55% 45%;
+    --success-foreground: 0 0% 100%;
+    --border: 188 20% 22%;
+    --input: 188 20% 22%;
+    --ring: 178 48% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Fraunces', Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+  }
+  .bg-gradient-hero {
+    background: var(--gradient-hero);
+  }
+  .bg-gradient-warm {
+    background: var(--gradient-warm);
+  }
+  .bg-gradient-leaf {
+    background: var(--gradient-leaf);
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  .transition-smooth {
+    transition: var(--transition-smooth);
   }
 }

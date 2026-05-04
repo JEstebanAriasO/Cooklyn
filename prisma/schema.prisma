@@ -20,6 +20,7 @@ model User {
   history     History[]
   Profile     Profile?
   Rating      Rating[]
+  restrictions UserRestriction[]
 }
 
 model Profile {
@@ -106,4 +107,14 @@ model MedicalRestriction {
   id          String  @id @default(uuid())
   name        String  @unique
   description String?
+  users       UserRestriction[]  // Relación opuesta
+} 
+
+model UserRestriction {
+  userId        String
+  restrictionId String
+  user          User               @relation(fields: [userId], references: [id])
+  restriction   MedicalRestriction @relation(fields: [restrictionId], references: [id])
+
+  @@id([userId, restrictionId])
 }

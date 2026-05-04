@@ -26,12 +26,27 @@ connectDB();
 
 // --- AUTENTICACIÓN ---
 app.post('/api/auth/register', async (req, res) => {
-    const { email, password, name } = req.body;
+    const { email, password, name, restrictionIds } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = await prisma.user.create({ data: { email, password: hashedPassword, name } });
+        const user = await prisma.user.create({
+            data: {
+                email,
+                password: hashedPassword,
+                name,
+                ...(Array.isArray(restrictionIds) && restrictionIds.length > 0
+                    ? {
+                          restrictions: {
+                              create: restrictionIds.map((id: string) => ({ restrictionId: id })),
+                          },
+                      }
+                    : {}),
+            },
+        });
         res.json({ message: 'Usuario creado', userId: user.id });
-    } catch (e) { res.status(400).json({ error: 'Error en registro' }); }
+    } catch (e) {
+        res.status(400).json({ error: 'Error en registro' });
+    }
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -40,8 +55,13 @@ app.post('/api/auth/login', async (req, res) => {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).send();
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { id: user.id, name: user.name } });
-    } catch (e) { res.status(500).send(); }
+        res.json({
+            token,
+            user: { id: user.id, name: user.name ?? '', email: user.email },
+        });
+    } catch (e) {
+        res.status(500).send();
+    }
 });
 
 // --- INVENTARIO ---

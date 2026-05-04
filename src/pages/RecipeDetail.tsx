@@ -1,188 +1,256 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-    ChevronLeft, Clock, ChefHat, CheckCircle,
-    Loader2, ShoppingCart, AlertCircle, Heart
-} from 'lucide-react';
+  ChevronLeft,
+  Clock,
+  ChefHat,
+  CheckCircle,
+  Loader2,
+  ShoppingCart,
+  AlertCircle,
+  Heart,
+} from "lucide-react";
 
-const RecipeDetail = ({ recipeId, onBack }: { recipeId: string, onBack: () => void }) => {
-    const [recipe, setRecipe] = useState<any>(null);
-    const [missingIngredients, setMissingIngredients] = useState<any[]>([]);
-    const [isFavorite, setIsFavorite] = useState(false); // Estado para el corazón
-    const [loading, setLoading] = useState(true);
-    const [isCooking, setIsCooking] = useState(false);
+const RecipeDetail = () => {
+  const { id: recipeId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [recipe, setRecipe] = useState<any>(null);
+  const [missingIngredients, setMissingIngredients] = useState<any[]>([]);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isCooking, setIsCooking] = useState(false);
 
-    const userId = localStorage.getItem('user_id');
+  const userId = localStorage.getItem("user_id");
 
-    useEffect(() => {
-        const fetchRecipeData = async () => {
-            try {
-                // 1. Cargar detalles de la receta[cite: 12]
-                const recipeRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}`);
-                const recipeData = await recipeRes.json();
-                setRecipe(recipeData);
-
-                // 2. Cargar ingredientes faltantes[cite: 12]
-                const missingRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}/missing-ingredients/${userId}`);
-                const missingData = await missingRes.json();
-                setMissingIngredients(missingData);
-
-                // 3. Verificar si ya es favorita (Petición opcional al backend o check local)
-                const favRes = await fetch(`http://localhost:3000/api/favorites/${userId}`);
-                const favs = await favRes.json();
-                setIsFavorite(favs.some((f: any) => f.id === recipeId));
-
-            } catch (error) {
-                console.error("Error al cargar datos:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (recipeId && userId) fetchRecipeData();
-    }, [recipeId, userId]);
-
-    // Función para guardar/quitar de favoritos
-    const toggleFavorite = async () => {
-        try {
-            const res = await fetch('http://localhost:3000/api/favorites/toggle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, recipeId }),
-            });
-            const data = await res.json();
-            setIsFavorite(data.isFavorite);
-        } catch (err) {
-            console.error("Error al actualizar favoritos");
+  useEffect(() => {
+    if (!recipeId) return;
+    const fetchRecipeData = async () => {
+      try {
+        const recipeRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}`);
+        if (!recipeRes.ok) {
+          setRecipe(null);
+          return;
         }
+        const recipeData = await recipeRes.json();
+        setRecipe(recipeData);
+
+        if (userId) {
+          const missingRes = await fetch(`http://localhost:3000/api/recipes/${recipeId}/missing-ingredients/${userId}`);
+          const missingData = await missingRes.json();
+          setMissingIngredients(Array.isArray(missingData) ? missingData : []);
+
+          const favRes = await fetch(`http://localhost:3000/api/favorites/${userId}`);
+          const favs = await favRes.json();
+          const list = Array.isArray(favs) ? favs : [];
+          setIsFavorite(list.some((f: any) => f.id === recipeId));
+        }
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleCook = async () => {
-        setIsCooking(true);
-        try {
-            const res = await fetch('http://localhost:3000/api/recipes/cook', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, recipeId }),
-            });
+    fetchRecipeData();
+  }, [recipeId, userId]);
 
-            if (res.ok) {
-                alert("¡Buen provecho! Ingredientes descontados de tu despensa.");
-                onBack();
-            } else {
-                const error = await res.json();
-                alert(error.error || "Algo salió mal al cocinar.");
-            }
-        } catch (err) {
-            alert("Error de conexión con el servidor.");
-        } finally {
-            setIsCooking(false);
-        }
-    };
+  const toggleFavorite = async () => {
+    if (!userId || !recipeId) return;
+    try {
+      const res = await fetch("http://localhost:3000/api/favorites/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, recipeId }),
+      });
+      const data = await res.json();
+      setIsFavorite(data.isFavorite);
+    } catch {
+      console.error("Error al actualizar favoritos");
+    }
+  };
 
-    if (loading) return (
-        <div className="flex justify-center py-20 text-slate-400">
-            <Loader2 className="animate-spin text-orange-500 mr-2" /> Analizando ingredientes...
-        </div>
-    );
+  const handleCook = async () => {
+    if (!userId || !recipeId) return;
+    setIsCooking(true);
+    try {
+      const res = await fetch("http://localhost:3000/api/recipes/cook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, recipeId }),
+      });
 
-    const canCook = missingIngredients.length === 0;
+      if (res.ok) {
+        alert("¡Buen provecho! Ingredientes descontados de tu despensa.");
+        navigate("/historial");
+      } else {
+        const error = await res.json().catch(() => ({}));
+        alert(error.error || "Algo salió mal al cocinar.");
+      }
+    } catch {
+      alert("Error de conexión con el servidor.");
+    } finally {
+      setIsCooking(false);
+    }
+  };
 
+  if (!recipeId) {
     return (
-        <div className="max-w-3xl mx-auto p-6">
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-orange-500 mb-6 transition-colors font-medium">
-                <ChevronLeft size={20} /> Volver a recetas
-            </button>
-
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-xl shadow-slate-100">
-                <div className="h-72 bg-slate-100 flex items-center justify-center text-slate-400 relative">
-                    <img
-                        src={`https://source.unsplash.com/800x600/?cooking,${recipe?.title}`}
-                        alt={recipe?.title}
-                        className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                </div>
-
-                <div className="p-10">
-                    <div className="flex justify-between items-start mb-6">
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">{recipe?.title}</h1>
-                        <button
-                            onClick={toggleFavorite}
-                            className={`p-4 rounded-2xl transition-all shadow-sm border ${isFavorite
-                                    ? 'bg-rose-50 border-rose-100 text-rose-500'
-                                    : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-rose-400'
-                                }`}
-                        >
-                            <Heart size={24} className={isFavorite ? "fill-rose-500" : ""} />
-                        </button>
-                    </div>
-
-                    <div className="flex gap-4 mb-10">
-                        <div className="flex items-center gap-2 text-slate-700 bg-slate-50 border border-slate-100 px-5 py-2.5 rounded-2xl text-sm font-bold">
-                            <Clock size={18} className="text-orange-500" /> {recipe?.cookingTime || '20'} min
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-700 bg-slate-50 border border-slate-100 px-5 py-2.5 rounded-2xl text-sm font-bold">
-                            <ChefHat size={18} className="text-orange-500" /> {recipe?.difficulty || 'Media'}
-                        </div>
-                    </div>
-
-                    {/* SECCIÓN DE INGREDIENTES FALTANTES[cite: 12] */}
-                    {missingIngredients.length > 0 && (
-                        <div className="mb-10 p-6 bg-rose-50 border border-rose-100 rounded-3xl">
-                            <h3 className="text-rose-800 font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
-                                <ShoppingCart size={18} /> Te faltan estos ingredientes:
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {missingIngredients.map((mi: any) => (
-                                    <div key={mi.id || mi.ingredientId} className="flex items-center gap-2 text-rose-600 bg-white/50 p-2 rounded-xl border border-rose-200/50 text-sm">
-                                        <AlertCircle size={14} />
-                                        <span className="font-semibold">{mi.ingredient.name}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <h2 className="text-2xl font-bold text-slate-800 mb-5">Ingredientes necesarios</h2>
-                    <div className="grid gap-3 mb-10">
-                        {recipe?.ingredients?.map((ri: any) => {
-                            const isMissing = missingIngredients.some(mi => mi.ingredientId === ri.ingredientId);
-                            return (
-                                <div key={ri.id || ri.ingredientId} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isMissing ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-orange-50/50 border-orange-100/50'}`}>
-                                    <div className={`w-2.5 h-2.5 rounded-full ${isMissing ? 'bg-slate-300' : 'bg-orange-500'}`} />
-                                    <span className={`font-medium ${isMissing ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                                        {ri.quantity || '1 unidad'} de <span className="font-bold">{ri.ingredient.name}</span>
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    <h2 className="text-2xl font-bold text-slate-800 mb-5">Instrucciones</h2>
-                    <p className="text-slate-600 leading-relaxed whitespace-pre-line text-lg mb-10 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                        {recipe?.instructions}
-                    </p>
-
-                    <button
-                        onClick={handleCook}
-                        disabled={isCooking || !canCook}
-                        className={`w-full font-black py-5 rounded-[1.5rem] shadow-lg flex items-center justify-center gap-3 transition-all duration-300 active:scale-[0.98]
-                            ${canCook
-                                ? 'bg-slate-900 text-white hover:bg-orange-500'
-                                : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'}`}
-                    >
-                        {isCooking ? (
-                            <Loader2 className="animate-spin" size={24} />
-                        ) : canCook ? (
-                            <><CheckCircle size={24} /> ¡Cocinar esta receta!</>
-                        ) : (
-                            <><ShoppingCart size={24} /> Faltan ingredientes</>
-                        )}
-                    </button>
-                </div>
-            </div>
-        </div>
+      <p className="text-center text-muted-foreground">
+        Receta no válida. <Link to="/recetas">Volver</Link>
+      </p>
     );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20 text-muted-foreground">
+        <Loader2 className="animate-spin text-primary mr-2" aria-hidden /> Analizando ingredientes...
+      </div>
+    );
+  }
+
+  if (!recipe) {
+    return (
+      <div className="text-center space-y-4">
+        <p className="text-muted-foreground">Receta no encontrada.</p>
+        <Link to="/recetas" className="text-primary font-medium hover:underline">
+          Volver a recetas
+        </Link>
+      </div>
+    );
+  }
+
+  const canCook = userId ? missingIngredients.length === 0 : false;
+
+  return (
+    <div className="max-w-3xl mx-auto p-6">
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 text-muted-foreground hover:text-primary mb-6 transition-colors font-medium"
+      >
+        <ChevronLeft size={20} aria-hidden /> Volver
+      </button>
+
+      <div className="bg-card rounded-[2.5rem] border border-border overflow-hidden shadow-card">
+        <div className="h-72 bg-muted flex items-center justify-center text-muted-foreground relative">
+          <img
+            src={`https://source.unsplash.com/800x600/?cooking,${encodeURIComponent(recipe?.title ?? "")}`}
+            alt={recipe?.title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+        </div>
+
+        <div className="p-10">
+          <div className="flex justify-between items-start mb-6 gap-4">
+            <h1 className="font-display text-4xl font-700 text-foreground tracking-tight">{recipe?.title}</h1>
+            {userId && (
+              <button
+                type="button"
+                onClick={toggleFavorite}
+                className={`p-4 rounded-2xl transition-all shadow-soft border shrink-0 ${
+                  isFavorite
+                    ? "bg-destructive/10 border-destructive/20 text-destructive"
+                    : "bg-muted border-border text-muted-foreground hover:text-destructive"
+                }`}
+                aria-pressed={isFavorite}
+              >
+                <Heart size={24} className={isFavorite ? "fill-destructive text-destructive" : ""} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-4 mb-10 flex-wrap">
+            <div className="flex items-center gap-2 text-foreground bg-muted border border-border px-5 py-2.5 rounded-2xl text-sm font-700">
+              <Clock size={18} className="text-primary" aria-hidden /> {recipe?.cookingTime || "20"} min
+            </div>
+            <div className="flex items-center gap-2 text-foreground bg-muted border border-border px-5 py-2.5 rounded-2xl text-sm font-700">
+              <ChefHat size={18} className="text-primary" aria-hidden /> {recipe?.difficulty || "Media"}
+            </div>
+          </div>
+
+          {userId && missingIngredients.length > 0 && (
+            <div className="mb-10 p-6 bg-warning/10 border border-warning/30 rounded-3xl">
+              <h3 className="text-warning font-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
+                <ShoppingCart size={18} aria-hidden /> Te faltan estos ingredientes:
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {missingIngredients.map((mi: any) => (
+                  <div
+                    key={mi.id || mi.ingredientId}
+                    className="flex items-center gap-2 text-warning bg-card/80 p-2 rounded-xl border border-warning/20 text-sm"
+                  >
+                    <AlertCircle size={14} aria-hidden />
+                    <span className="font-semibold">{mi.ingredient.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <h2 className="font-display text-2xl font-700 text-foreground mb-5">Ingredientes necesarios</h2>
+          <div className="grid gap-3 mb-10">
+            {recipe?.ingredients?.map((ri: any) => {
+              const isMissing = userId
+                ? missingIngredients.some((mi) => mi.ingredientId === ri.ingredientId)
+                : false;
+              return (
+                <div
+                  key={ri.id || ri.ingredientId}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
+                    isMissing ? "bg-muted border-border opacity-60" : "bg-primary/5 border-primary/20"
+                  }`}
+                >
+                  <div className={`w-2.5 h-2.5 rounded-full ${isMissing ? "bg-muted-foreground/40" : "bg-primary"}`} />
+                  <span className={`font-medium ${isMissing ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                    {ri.quantity || "1 unidad"} de <span className="font-700">{ri.ingredient.name}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <h2 className="font-display text-2xl font-700 text-foreground mb-5">Instrucciones</h2>
+          <p className="text-muted-foreground leading-relaxed whitespace-pre-line text-lg mb-10 bg-muted p-6 rounded-3xl border border-border">
+            {recipe?.instructions}
+          </p>
+
+          {userId ? (
+            <button
+              type="button"
+              onClick={handleCook}
+              disabled={isCooking || !canCook}
+              className={`w-full font-700 py-5 rounded-[1.5rem] shadow-soft flex items-center justify-center gap-3 transition-all duration-300 active:scale-[0.98] ${
+                canCook
+                  ? "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
+                  : "bg-muted text-muted-foreground cursor-not-allowed border border-border"
+              }`}
+            >
+              {isCooking ? (
+                <Loader2 className="animate-spin" size={24} aria-hidden />
+              ) : canCook ? (
+                <>
+                  <CheckCircle size={24} aria-hidden /> ¡Cocinar esta receta!
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={24} aria-hidden /> Faltan ingredientes
+                </>
+              )}
+            </button>
+          ) : (
+            <p className="text-center text-muted-foreground text-sm">
+              <Link to="/login" className="text-primary font-700 hover:underline">
+                Inicia sesión
+              </Link>{" "}
+              para marcar favoritos y registrar cuando cocinas.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default RecipeDetail;
