@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
@@ -101,6 +102,33 @@ app.get('/api/recipes/:id', async (req, res) => {
     recipe ? res.json(recipe) : res.status(404).send();
 });
 
+app.get('/api/recipes/match/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const inventory = await prisma.inventory.findMany({
+            where: { userId },
+            select: { ingredientId: true },
+        });
+        const myIngredientIds = inventory.map((item) => item.ingredientId);
+
+        if (myIngredientIds.length === 0) {
+            return res.json([]);
+        }
+
+        const recipes = await prisma.recipe.findMany({
+            include: { ingredients: { include: { ingredient: true } } },
+        });
+
+        const matches = recipes.filter((recipe) =>
+            recipe.ingredients.every((ri) => myIngredientIds.includes(ri.ingredientId)),
+        );
+
+        res.json(matches);
+    } catch (e) {
+        res.status(500).json({ error: 'No se pudieron obtener recetas sugeridas' });
+    }
+});
+
 // NUEVA: Ruta de ingredientes faltantes (Arregla el error de tu captura)
 app.get('/api/recipes/:recipeId/missing-ingredients/:userId', async (req, res) => {
     const { recipeId, userId } = req.params;
@@ -166,6 +194,32 @@ app.get('/api/ingredients/search', async (req, res) => {
     const { q } = req.query;
     const ings = await prisma.ingredient.findMany({ where: { name: { contains: String(q) } }, take: 10 });
     res.json(ings);
+});
+
+app.get('/api/ingredients', async (_req, res) => {
+    const ingredients = await prisma.ingredient.findMany({ orderBy: { name: 'asc' } });
+    res.json(ingredients);
+});
+
+app.post('/api/ingredients', async (req, res) => {
+    const { name, category } = req.body;
+    if (!name || typeof name !== 'string') {
+        return res.status(400).json({ error: 'El nombre del ingrediente es obligatorio' });
+    }
+
+    try {
+        const ingredient = await prisma.ingredient.upsert({
+            where: { name: name.trim() },
+            update: { category: typeof category === 'string' ? category : null },
+            create: {
+                name: name.trim(),
+                category: typeof category === 'string' ? category : null,
+            },
+        });
+        res.json(ingredient);
+    } catch (e) {
+        res.status(500).json({ error: 'No se pudo guardar el ingrediente' });
+    }
 });
 
 app.listen(PORT, () => console.log(`🚀 Cooklyn corriendo en http://localhost:${PORT}`));

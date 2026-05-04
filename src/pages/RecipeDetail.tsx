@@ -12,6 +12,21 @@ import {
 } from "lucide-react";
 import { recipePlaceholder, resolveRecipeImage } from "@/lib/recipeImages";
 
+/** Soporta "1. Paso. 2. Paso." (seed) o una línea por paso. */
+function parseInstructionSteps(raw: string | undefined | null): string[] {
+  if (!raw?.trim()) return [];
+  const trimmed = raw.trim();
+  if (/\d+\.\s/.test(trimmed)) {
+    const parts = trimmed.split(/\s*(?=\d+\.\s)/).filter(Boolean);
+    const steps = parts.map((p) => p.replace(/^\d+\.\s*/, "").trim()).filter(Boolean);
+    if (steps.length > 0) return steps;
+  }
+  return trimmed
+    .split(/\n+/)
+    .map((s) => s.replace(/^\d+[\).\s]+/, "").trim())
+    .filter(Boolean);
+}
+
 const RecipeDetail = () => {
   const { id: recipeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -123,6 +138,7 @@ const RecipeDetail = () => {
 
   const canCook = userId ? missingIngredients.length === 0 : false;
   const imageUrl = resolveRecipeImage(recipe);
+  const instructionSteps = parseInstructionSteps(recipe?.instructions);
 
   return (
     <div className="max-w-3xl mx-auto p-6">
@@ -217,10 +233,44 @@ const RecipeDetail = () => {
             })}
           </div>
 
-          <h2 className="font-display text-2xl font-700 text-foreground mb-5">Instrucciones</h2>
-          <p className="text-muted-foreground leading-relaxed whitespace-pre-line text-lg mb-10 bg-muted p-6 rounded-3xl border border-border">
-            {recipe?.instructions}
-          </p>
+          <section
+            className="mb-10 rounded-2xl bg-[#faf9f6] px-6 py-8 sm:px-8 sm:py-10"
+            aria-labelledby="recipe-step-instructions-heading"
+          >
+            <h2
+              id="recipe-step-instructions-heading"
+              className="font-display text-2xl font-700 tracking-tight text-[#3d4f5c] mb-8 sm:mb-10 pt-1"
+            >
+              Instrucciones paso a paso
+            </h2>
+            {instructionSteps.length > 0 ? (
+              <ol className="list-none m-0 p-0">
+                {instructionSteps.map((step, i) => (
+                  <li key={i} className="flex gap-[15px] items-stretch">
+                    <div className="flex w-10 shrink-0 items-center py-[15px]">
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f0f0] font-700 text-[15px] text-[#3d4f5c]"
+                        aria-hidden
+                      >
+                        {i + 1}
+                      </div>
+                    </div>
+                    <div
+                      className={`min-w-0 flex-1 flex items-center py-[15px] text-[#3d4f5c] ${
+                        i < instructionSteps.length - 1 ? "border-b border-[#eeeeee]" : ""
+                      }`}
+                    >
+                      <p className="m-0 font-sans text-base font-normal leading-relaxed">{step}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="m-0 font-sans text-base font-normal leading-relaxed whitespace-pre-line text-[#3d4f5c]">
+                {recipe?.instructions}
+              </p>
+            )}
+          </section>
 
           {userId ? (
             <button
