@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Heart,
 } from "lucide-react";
+import { recipePlaceholder, resolveRecipeImage } from "@/lib/recipeImages";
 
 const RecipeDetail = () => {
   const { id: recipeId } = useParams<{ id: string }>();
@@ -121,6 +122,7 @@ const RecipeDetail = () => {
   }
 
   const canCook = userId ? missingIngredients.length === 0 : false;
+  const imageUrl = resolveRecipeImage(recipe);
 
   return (
     <div className="max-w-3xl mx-auto p-6">
@@ -135,9 +137,13 @@ const RecipeDetail = () => {
       <div className="bg-card rounded-[2.5rem] border border-border overflow-hidden shadow-card">
         <div className="h-72 bg-muted flex items-center justify-center text-muted-foreground relative">
           <img
-            src={`https://source.unsplash.com/800x600/?cooking,${encodeURIComponent(recipe?.title ?? "")}`}
+            src={imageUrl}
             alt={recipe?.title}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = recipePlaceholder(String(recipe?.title ?? "Cooklyn"));
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>

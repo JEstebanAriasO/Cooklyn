@@ -81,9 +81,14 @@ const Register = () => {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-8 text-center">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-soft">
-          <UserIcon className="h-10 w-10" aria-hidden />
-        </div>
+        <img
+          src="/cooklyn-logo.png"
+          alt="Cooklyn — Abre y cocina"
+          className="mx-auto h-24 w-auto max-w-[min(100%,280px)] object-contain drop-shadow-sm sm:h-28"
+          width={280}
+          height={112}
+          decoding="async"
+        />
         <h1 className="mt-4 font-display text-4xl font-700">Crea tu perfil</h1>
         <p className="mt-2 text-muted-foreground">Personaliza tu experiencia con Cooklyn en menos de un minuto.</p>
       </div>

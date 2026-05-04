@@ -10,6 +10,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { recipeService } from "@/services/recipeService";
+import { recipePlaceholder, resolveRecipeImage } from "@/lib/recipeImages";
 
 interface Props {
   count?: number;
@@ -72,9 +73,7 @@ export function HomeRecipeCarousel({ count = 6, intervalMs = 4000 }: Props) {
       <Carousel opts={{ loop: true, align: "start" }} setApi={setApi} className="h-full w-full" aria-label="Recetas destacadas">
         <CarouselContent className="h-full">
           {slides.map((r) => {
-            const img =
-              (r as { imageUrl?: string }).imageUrl ||
-              `https://source.unsplash.com/800x600/?food,cooking,${encodeURIComponent(String(r.title ?? ""))}`;
+            const img = resolveRecipeImage(r as { imageUrl?: string; title?: string });
             const mins = parseInt(String((r as { cookingTime?: string }).cookingTime ?? "20"), 10) || 20;
             const badge = (r as { difficulty?: string }).difficulty || "Receta";
             return (
@@ -83,7 +82,16 @@ export function HomeRecipeCarousel({ count = 6, intervalMs = 4000 }: Props) {
                   to={`/recetas/${r.id}`}
                   className="group relative block h-full min-h-[320px] w-full overflow-hidden rounded-3xl"
                 >
-                  <img src={img} alt={r.title} loading="lazy" className="h-full w-full object-cover transition-smooth group-hover:scale-105" />
+                  <img
+                    src={img}
+                    alt={r.title}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-smooth group-hover:scale-105"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = recipePlaceholder(String(r?.title ?? "Cooklyn"));
+                    }}
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-5 text-background">
                     <span className="inline-block rounded-full bg-background/90 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-foreground">

@@ -16,9 +16,9 @@ app.use(express.json());
 async function connectDB() {
     try {
         await prisma.$connect();
-        console.log("✅ Servidor Cooklyn conectado a MySQL en Manizales");
+        console.log(" Servidor Cooklyn conectado a MySQL");
     } catch (e) {
-        console.error("❌ Error de conexión:", e);
+        console.error(" Error de conexión:", e);
         process.exit(1);
     }
 }
@@ -36,10 +36,10 @@ app.post('/api/auth/register', async (req, res) => {
                 name,
                 ...(Array.isArray(restrictionIds) && restrictionIds.length > 0
                     ? {
-                          restrictions: {
-                              create: restrictionIds.map((id: string) => ({ restrictionId: id })),
-                          },
-                      }
+                        restrictions: {
+                            create: restrictionIds.map((id: string) => ({ restrictionId: id })),
+                        },
+                    }
                     : {}),
             },
         });

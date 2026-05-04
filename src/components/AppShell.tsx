@@ -1,4 +1,4 @@
-import { ChefHat, Heart, History, Home, Package, User, Utensils } from "lucide-react";
+import { Heart, History, Home, Package, User, Utensils } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useCooklyn } from "@/context/CooklynContext";
 import { cn } from "@/lib/utils";
@@ -19,10 +19,16 @@ export function AppShell() {
     <div className="min-h-screen bg-gradient-leaf">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="container flex h-16 items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-soft transition-smooth group-hover:shadow-glow">
-              <ChefHat className="h-5 w-5 shrink-0" aria-hidden />
-            </span>
+          <Link to="/" className="flex items-center gap-2.5 group shrink-0" aria-label="Cooklyn — inicio">
+            <img
+              src="/cooklyn-logo.png"
+              alt=""
+              className="h-9 w-auto max-h-10 sm:h-10 sm:max-h-11 object-contain object-left rounded-xl shadow-soft ring-1 ring-primary/15 transition-smooth group-hover:shadow-glow"
+              width={140}
+              height={40}
+              decoding="async"
+              aria-hidden
+            />
             <span className="font-display text-2xl font-700 tracking-tight text-primary">Cooklyn</span>
           </Link>
 

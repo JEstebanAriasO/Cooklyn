@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { recipeService } from "../services/recipeService";
 import HealthFilter from "../components/ui/HealthFilter";
 import { Utensils, Filter, Loader2 } from "lucide-react";
+import { recipePlaceholder, resolveRecipeImage } from "@/lib/recipeImages";
 
 const Recipes = () => {
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -86,13 +87,16 @@ const Recipes = () => {
               className="group bg-card rounded-3xl border border-border overflow-hidden shadow-soft hover:shadow-card hover:-translate-y-1 transition-all duration-300"
             >
               <div className="h-48 bg-muted relative">
-                {recipe.imageUrl ? (
-                  <img src={recipe.imageUrl} alt={recipe.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground uppercase tracking-widest font-700">
-                    Cooklyn
-                  </div>
-                )}
+                <img
+                  src={resolveRecipeImage(recipe)}
+                  alt={recipe.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = recipePlaceholder(String(recipe?.title ?? "Cooklyn"));
+                  }}
+                />
                 <div className="absolute top-4 right-4 bg-card/90 backdrop-blur px-3 py-1 rounded-full text-xs font-700 text-primary shadow-soft">
                   {recipe.difficulty || "Media"}
                 </div>
